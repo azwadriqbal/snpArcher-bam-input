@@ -10,7 +10,7 @@ This **modified** version of snpArcher is designed to accept **BAM files as inpu
 ### Usage
 For usage instructions and complete documentation, please visit our [docs](https://snparcher.readthedocs.io/en/latest/).
 
-In addition to the standard usage instructions, the sample list input file must be modified to include the paths to the BAM files. An example of the sample list format is provided below (with an example in `config/example_samples.csv`):
+In addition to the standard usage instructions, **the sample list must be modified to include the paths to the BAM files**. An example of the expected sample list format is provided below (with an example in `config/example_samples.csv`):
 
 ```
 BioSample,Run,LibraryName,refGenome,refPath,bam
