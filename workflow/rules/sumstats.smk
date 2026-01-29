@@ -69,11 +69,12 @@ rule collect_sumstats:
         aln_metrics = collectAlnSumMets(input.alnSumMetsFiles)
         SeqDepths, CoveredBases = collectCoverageMetrics(input.coverageFiles)
         
-        # Collect fastp metrics (may be empty for external BAM samples)
-        if input.fastpFiles:  # ← Check if list is not empty
+        # Check if fastp files were included in the input
+        # For external BAM samples, fastpFiles won't be in the input
+        if hasattr(input, 'fastpFiles') and input.fastpFiles:
             FractionReadsPassFilter, NumReadsPassFilter = collectFastpOutput(input.fastpFiles)
         else:
-            # External BAM samples - no fastp data
+            # No fastp files - external BAM samples
             FractionReadsPassFilter = {}
             NumReadsPassFilter = {}
         
@@ -91,14 +92,3 @@ rule collect_sumstats:
                 output[0], 
                 median_inserts, median_insert_std
             )
-        # if not config['sentieon']:
-        #     FractionReadsPassFilter, NumReadsPassFilter = collectFastpOutput(input.fastpFiles)
-        #     aln_metrics = collectAlnSumMets(input.alnSumMetsFiles)
-        #     SeqDepths, CoveredBases = collectCoverageMetrics(input.coverageFiles)
-        #     printBamSumStats(SeqDepths, CoveredBases, aln_metrics, FractionReadsPassFilter, NumReadsPassFilter, output[0])
-        # else:
-        #     FractionReadsPassFilter, NumReadsPassFilter = collectFastpOutput(input.fastpFiles)
-        #     aln_metrics = collectAlnSumMets(input.alnSumMetsFiles)
-        #     SeqDepths, CoveredBases = collectCoverageMetrics(input.coverageFiles)
-        #     median_inserts, median_insert_std = collect_inserts(input.insert_files)
-        #     printBamSumStats(SeqDepths, CoveredBases, aln_metrics, FractionReadsPassFilter, NumReadsPassFilter, output[0], median_inserts, median_insert_std)

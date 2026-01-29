@@ -1,0 +1,4 @@
+BioSample,Run,LibraryName,refGenome,refPath,bam,SampleType
+Sample_1,external_bam,lib1,ref_genome,/path/to/ref/genome.fa,/path/to/bams/sample_1.bam,include
+Sample_2,external_bam,lib1,ref_genome,/path/to/ref/genome.fa,/path/to/bams/sample_2.bam,include
+Sample_3,external_bam,lib1,ref_genome,/path/to/ref/genome.fa,/path/to/bams/sample_3.bam,include

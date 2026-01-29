@@ -344,7 +344,7 @@ def get_input_sumstats(wildcards):
             fastp_samples.append(sample)
     
     if fastp_samples:
-        fastp = expand("results/{{refGenome}}/summary_stats/{sample}_fastp.out", sample=_samples)
+        fastp = expand("results/{{refGenome}}/summary_stats/{sample}_fastp.out", sample=fastp_samples)
     else:
         fastp = []
 
