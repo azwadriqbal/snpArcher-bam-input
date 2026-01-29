@@ -45,7 +45,19 @@ rule collect_fastp_stats:
     output:
         "results/{refGenome}/summary_stats/{sample}_fastp.out"
     run:
-        combine_fastp_files(input, output)
+        if input:  # ← Check if input list is not empty
+            combine_fastp_files(input, output)
+        else:
+            # External BAM sample - create empty/dummy fastp output
+            import json
+            dummy_out = {
+                "summary": {
+                    "before_filtering": {"total_reads": 0}, 
+                    "after_filtering": {"total_reads": 0}
+                }
+            }
+            with open(output[0], "w") as f:
+                json.dump(dummy_out, f)
 
 rule collect_sumstats:
     input:
@@ -53,14 +65,40 @@ rule collect_sumstats:
     output:
         "results/{refGenome}/summary_stats/{prefix}_bam_sumstats.txt"
     run:
-        if not config['sentieon']:
+        # Collect alignment and coverage metrics (always present)
+        aln_metrics = collectAlnSumMets(input.alnSumMetsFiles)
+        SeqDepths, CoveredBases = collectCoverageMetrics(input.coverageFiles)
+        
+        # Collect fastp metrics (may be empty for external BAM samples)
+        if input.fastpFiles:  # ← Check if list is not empty
             FractionReadsPassFilter, NumReadsPassFilter = collectFastpOutput(input.fastpFiles)
-            aln_metrics = collectAlnSumMets(input.alnSumMetsFiles)
-            SeqDepths, CoveredBases = collectCoverageMetrics(input.coverageFiles)
-            printBamSumStats(SeqDepths, CoveredBases, aln_metrics, FractionReadsPassFilter, NumReadsPassFilter, output[0])
         else:
-            FractionReadsPassFilter, NumReadsPassFilter = collectFastpOutput(input.fastpFiles)
-            aln_metrics = collectAlnSumMets(input.alnSumMetsFiles)
-            SeqDepths, CoveredBases = collectCoverageMetrics(input.coverageFiles)
+            # External BAM samples - no fastp data
+            FractionReadsPassFilter = {}
+            NumReadsPassFilter = {}
+        
+        if not config['sentieon']:
+            printBamSumStats(
+                SeqDepths, CoveredBases, aln_metrics, 
+                FractionReadsPassFilter, NumReadsPassFilter, 
+                output[0]
+            )
+        else:
             median_inserts, median_insert_std = collect_inserts(input.insert_files)
-            printBamSumStats(SeqDepths, CoveredBases, aln_metrics, FractionReadsPassFilter, NumReadsPassFilter, output[0], median_inserts, median_insert_std)
+            printBamSumStats(
+                SeqDepths, CoveredBases, aln_metrics, 
+                FractionReadsPassFilter, NumReadsPassFilter, 
+                output[0], 
+                median_inserts, median_insert_std
+            )
+        # if not config['sentieon']:
+        #     FractionReadsPassFilter, NumReadsPassFilter = collectFastpOutput(input.fastpFiles)
+        #     aln_metrics = collectAlnSumMets(input.alnSumMetsFiles)
+        #     SeqDepths, CoveredBases = collectCoverageMetrics(input.coverageFiles)
+        #     printBamSumStats(SeqDepths, CoveredBases, aln_metrics, FractionReadsPassFilter, NumReadsPassFilter, output[0])
+        # else:
+        #     FractionReadsPassFilter, NumReadsPassFilter = collectFastpOutput(input.fastpFiles)
+        #     aln_metrics = collectAlnSumMets(input.alnSumMetsFiles)
+        #     SeqDepths, CoveredBases = collectCoverageMetrics(input.coverageFiles)
+        #     median_inserts, median_insert_std = collect_inserts(input.insert_files)
+        #     printBamSumStats(SeqDepths, CoveredBases, aln_metrics, FractionReadsPassFilter, NumReadsPassFilter, output[0], median_inserts, median_insert_std)

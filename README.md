@@ -1,9 +1,11 @@
-# snpArcher
+# snpArcher-bam-input
 
 <img src="./docs/img/logo.png" alt="snpArcher logo" height="300"/>
 
 
 snpArcher is a reproducible workflow optimized for nonmodel organisms and comparisons across datasets, built on the [Snakemake](https://snakemake.readthedocs.io/en/stable/index.html#) workflow management system. It provides a streamlined approach to dataset acquisition, variant calling, quality control, and downstream analysis.
+
+This **modified** version of snpArcher is designed to accept **BAM files as input**, rather than raw sequencing reads. It assumes that the BAM files have been pre-processed (e.g., aligned to a reference genome, sorted, and indexed with **duplicates marked**) and are ready for variant calling. Since this is an unofficial fork of snpArcher, please refer to the original [snpArcher repository](https://github.com/harvardinformatics/snpArcher/tree/main) for the main documentation, installation instructions, and usage guidelines.
 
 ### Usage
 For usage instructions and complete documentation, please visit our [docs](https://snparcher.readthedocs.io/en/latest/).

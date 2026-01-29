@@ -80,8 +80,22 @@ def get_output():
                 out.append(rules.trackhub_all.input)
     return out
 
+def is_external_bam_sample(sample_name):
+    """Check if a sample uses external BAM."""
+    if "bam" not in samples.columns:
+        return False
+    
+    sample_rows = samples.loc[samples["BioSample"] == sample_name]
+    if sample_rows.empty:
+        return False
+    
+    bam_values = sample_rows["bam"].dropna()
+    return not bam_values.empty
 
 def merge_bams_input(wc):
+    if is_external_bam_sample(wc.sample):
+        # If external BAM, no need to merge
+        return []
     return expand(
         "results/{{refGenome}}/bams/preMerge/{{sample}}/{run}.bam",
         run=samples.loc[samples["BioSample"] == wc.sample]["Run"].tolist(),
@@ -204,6 +218,38 @@ def get_gvcfs_db(wc):
 
 
 def dedup_input(wc):
+    # Check for external BAM input first
+    """Returns external BAM if provided, otherwise mapped BAMs from workflow."""
+    
+    # First, check if this sample has an external BAM specified
+    sample_rows = samples.loc[samples["BioSample"] == wc.sample]
+    
+    if not sample_rows.empty and "bam" in samples.columns:
+        # Get first non-null BAM path for this sample
+        bam_values = sample_rows["bam"].dropna()
+        
+        if not bam_values.empty:
+            bam_path = bam_values.iloc[0]
+            bai_path = bam_path + ".bai"
+            
+            # Validate external BAM exists
+            if not os.path.exists(bam_path):
+                raise WorkflowError(
+                    f"External BAM path specified for sample {wc.sample}: {bam_path}\n"
+                    f"But file does not exist. Please check your sample sheet."
+                )
+            if not os.path.exists(bai_path):
+                raise WorkflowError(
+                    f"External BAM found for sample {wc.sample}: {bam_path}\n"
+                    f"But BAM index not found: {bai_path}\n"
+                    f"Please create index with: samtools index {bam_path}"
+                )
+            
+            # Return external BAM
+            logger.info(f"Using external BAM for sample {wc.sample}: {bam_path}")
+            return {"bam": bam_path, "bai": bai_path}
+
+    # No external BAM provided, use workflow-generated BAMs
     runs = samples.loc[samples["BioSample"] == wc.sample]["Run"].tolist()
 
     if len(runs) == 1:
@@ -265,6 +311,8 @@ def get_remote_reads(wildcards):
     return {"r1": r1, "r2": r2}
 
 def collect_fastp_stats_input(wc):
+    if is_external_bam_sample(wc.sample):
+        return []
     return expand(
         "results/{{refGenome}}/summary_stats/{{sample}}/{run}.fastp.out",
         run=samples.loc[samples["BioSample"] == wc.sample]["Run"].tolist(),
@@ -283,12 +331,24 @@ def get_input_sumstats(wildcards):
     _samples = samples.loc[(samples["refGenome"] == wildcards.refGenome)]["BioSample"].unique().tolist()
     aln = expand("results/{{refGenome}}/summary_stats/{sample}_AlnSumMets.txt", sample=_samples)
     cov = expand("results/{{refGenome}}/summary_stats/{sample}_coverage.txt", sample=_samples)
-    fastp = expand("results/{{refGenome}}/summary_stats/{sample}_fastp.out", sample=_samples)
+ 
     insert = expand("results/{{refGenome}}/summary_stats/{sample}_insert_metrics.txt",sample=_samples)
     qd = expand("results/{{refGenome}}/summary_stats/{sample}_qd_metrics.txt", sample=_samples)
     mq = expand("results/{{refGenome}}/summary_stats/{sample}_mq_metrics.txt", sample=_samples)
     gc = expand("results/{{refGenome}}/summary_stats/{sample}_gc_metrics.txt", sample=_samples)
     gc_summary = expand("results/{{refGenome}}/summary_stats/{sample}_gc_summary.txt", sample=_samples)
+
+    fastp_samples = []
+    for sample in _samples:
+        if not is_external_bam_sample(sample):
+            fastp_samples.append(sample)
+    
+    if fastp_samples:
+        fastp = expand("results/{{refGenome}}/summary_stats/{sample}_fastp.out", sample=_samples)
+    else:
+        fastp = []
+
+
     if config["sentieon"]:
         out = {
             "alnSumMetsFiles": aln,
@@ -409,6 +469,10 @@ def collectCovStats(covSumFiles):
 def collectFastpOutput(fastpFiles):
     FractionReadsPassFilter = defaultdict(float)
     NumReadsPassFilter = defaultdict(int)
+    
+        
+    if not fastpFiles:  # Empty list for external BAM samples
+        return (FractionReadsPassFilter, NumReadsPassFilter)
 
     for fn in fastpFiles:
         sample = os.path.basename(fn)
@@ -427,6 +491,14 @@ def collectFastpOutput(fastpFiles):
 def combine_fastp_files(fastpFiles, outputfile):
     unfiltered = 0
     pass_filter = 0
+
+    if not fastpFiles:  # Empty list for external BAM samples
+        # Create empty/dummy output
+        out = {"summary": {"before_filtering":{"total_reads": 0}, "after_filtering":{"total_reads": 0}}}
+        with open(outputfile[0], "w") as f:
+            json.dump(out, f)
+        return
+    
     for fn in fastpFiles:
         with open(fn, "r") as f:
             data = json.load(f)
@@ -524,6 +596,10 @@ def printBamSumStats(
                 file=f,
             )
             for samp in samples:
+                # Handle missing fastp stats for external BAM samples
+                frac_pass = FractionReadsPassFilter.get(samp, "NA")
+                num_pass = NumReadsPassFilter.get(samp, "NA")
+                
                 print(
                     samp,
                     "\t",
@@ -547,6 +623,10 @@ def printBamSumStats(
                 file=f,
             )
             for samp in samples:
+                # Handle missing fastp stats for external BAM samples
+                frac_pass = FractionReadsPassFilter.get(samp, "NA")
+                num_pass = NumReadsPassFilter.get(samp, "NA")
+
                 print(
                     samp,
                     "\t",
