@@ -611,9 +611,9 @@ def printBamSumStats(
                     "\t",
                     aln_metrics[samp]["Percent Properly Paired"],
                     "\t",
-                    FractionReadsPassFilter[samp],
+                    frac_pass,
                     "\t",
-                    NumReadsPassFilter[samp],
+                    num_pass,
                     file=f,
                 )
     else:
@@ -638,9 +638,9 @@ def printBamSumStats(
                     "\t",
                     aln_metrics[samp]["Percent Properly Paired"],
                     "\t",
-                    FractionReadsPassFilter[samp],
+                    frac_pass,
                     "\t",
-                    NumReadsPassFilter[samp],
+                    num_pass,
                     "\t",
                     med_insert_sizes[samp],
                     "\t",
